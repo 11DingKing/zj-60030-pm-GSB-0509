@@ -57,6 +57,7 @@ model User {
   comments          Comment[]
   worklogs          Worklog[]
   mentionedComments Comment[]     @relation("CommentMentions")
+  notifications     Notification[]
 
   @@map("users")
 }
@@ -119,6 +120,7 @@ model Task {
   statusLogs     TaskStatusLog[]
   comments       Comment[]
   worklogs       Worklog[]
+  notifications  Notification[]
 
   @@map("tasks")
 }
@@ -148,6 +150,7 @@ model Comment {
   task    Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
   author  User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
   mentions User[] @relation("CommentMentions")
+  notifications Notification[]
 
   @@map("comments")
 }
@@ -166,4 +169,22 @@ model Worklog {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("worklogs")
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String
+  type       String
+  title      String
+  content    String?
+  commentId  String?
+  taskId     String?
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  task    Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
 }
