@@ -1,9 +1,13 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../common/prisma/prisma.service';
-import { RedisService } from '../common/redis/redis.service';
-import { CreateSprintDto } from './dto/create-sprint.dto';
-import { UpdateSprintDto } from './dto/update-sprint.dto';
-import { Sprint, TaskStatus, TaskType, UserRole, Prisma } from '@prisma/client';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from "@nestjs/common";
+import { PrismaService } from "../common/prisma/prisma.service";
+import { RedisService } from "../common/redis/redis.service";
+import { CreateSprintDto } from "./dto/create-sprint.dto";
+import { UpdateSprintDto } from "./dto/update-sprint.dto";
+import { Sprint, TaskStatus, TaskType, UserRole, Prisma } from "@prisma/client";
 
 const sprintWithTasks = Prisma.validator<Prisma.SprintDefaultArgs>()({
   include: {
@@ -20,10 +24,10 @@ const sprintWithTasks = Prisma.validator<Prisma.SprintDefaultArgs>()({
           include: {
             user: { select: { id: true, name: true } },
           },
-          orderBy: { changedAt: 'asc' },
+          orderBy: { changedAt: "asc" },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     },
   },
 });
@@ -47,14 +51,15 @@ export class SprintService {
     });
 
     if (!project) {
-      throw new NotFoundException('项目不存在');
+      throw new NotFoundException("项目不存在");
     }
 
-    const isMember = project.ownerId === userId || 
-      project.members.some(m => m.id === userId);
-    
+    const isMember =
+      project.ownerId === userId ||
+      project.members.some((m) => m.id === userId);
+
     if (!isMember) {
-      throw new ForbiddenException('无权访问该项目');
+      throw new ForbiddenException("无权访问该项目");
     }
 
     return this.prisma.sprint.findMany({
@@ -68,7 +73,7 @@ export class SprintService {
           },
         },
       },
-      orderBy: { startDate: 'asc' },
+      orderBy: { startDate: "asc" },
     });
   }
 
@@ -89,31 +94,36 @@ export class SprintService {
               include: {
                 user: { select: { id: true, name: true } },
               },
-              orderBy: { changedAt: 'asc' },
+              orderBy: { changedAt: "asc" },
             },
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
         },
       },
     });
 
     if (!sprint) {
-      throw new NotFoundException('Sprint 不存在');
+      throw new NotFoundException("Sprint 不存在");
     }
 
-    const isMember = sprint.project.ownerId === userId || 
-      sprint.project.members.some(m => m.id === userId);
-    
+    const isMember =
+      sprint.project.ownerId === userId ||
+      sprint.project.members.some((m) => m.id === userId);
+
     if (!isMember) {
-      throw new ForbiddenException('无权访问该 Sprint');
+      throw new ForbiddenException("无权访问该 Sprint");
     }
 
     return sprint;
   }
 
-  async create(createSprintDto: CreateSprintDto, userId: string, userRole: UserRole): Promise<Sprint> {
+  async create(
+    createSprintDto: CreateSprintDto,
+    userId: string,
+    userRole: UserRole,
+  ): Promise<Sprint> {
     if (userRole !== UserRole.PROJECT_MANAGER) {
-      throw new ForbiddenException('只有项目经理可以创建 Sprint');
+      throw new ForbiddenException("只有项目经理可以创建 Sprint");
     }
 
     const project = await this.prisma.project.findUnique({
@@ -122,11 +132,11 @@ export class SprintService {
     });
 
     if (!project) {
-      throw new NotFoundException('项目不存在');
+      throw new NotFoundException("项目不存在");
     }
 
     if (project.ownerId !== userId) {
-      throw new ForbiddenException('只有项目负责人可以创建 Sprint');
+      throw new ForbiddenException("只有项目负责人可以创建 Sprint");
     }
 
     const sprint = await this.prisma.sprint.create({
@@ -147,7 +157,11 @@ export class SprintService {
     return sprint;
   }
 
-  async update(id: string, updateSprintDto: UpdateSprintDto, userId: string): Promise<Sprint> {
+  async update(
+    id: string,
+    updateSprintDto: UpdateSprintDto,
+    userId: string,
+  ): Promise<Sprint> {
     const sprint = await this.prisma.sprint.findUnique({
       where: { id },
       include: {
@@ -156,11 +170,11 @@ export class SprintService {
     });
 
     if (!sprint) {
-      throw new NotFoundException('Sprint 不存在');
+      throw new NotFoundException("Sprint 不存在");
     }
 
     if (sprint.project.ownerId !== userId) {
-      throw new ForbiddenException('只有项目负责人可以修改 Sprint');
+      throw new ForbiddenException("只有项目负责人可以修改 Sprint");
     }
 
     const updated = await this.prisma.sprint.update({
@@ -168,8 +182,12 @@ export class SprintService {
       data: {
         name: updateSprintDto.name,
         goal: updateSprintDto.goal,
-        startDate: updateSprintDto.startDate ? new Date(updateSprintDto.startDate) : undefined,
-        endDate: updateSprintDto.endDate ? new Date(updateSprintDto.endDate) : undefined,
+        startDate: updateSprintDto.startDate
+          ? new Date(updateSprintDto.startDate)
+          : undefined,
+        endDate: updateSprintDto.endDate
+          ? new Date(updateSprintDto.endDate)
+          : undefined,
         status: updateSprintDto.status,
       },
       include: {
@@ -196,11 +214,11 @@ export class SprintService {
     });
 
     if (!sprint) {
-      throw new NotFoundException('Sprint 不存在');
+      throw new NotFoundException("Sprint 不存在");
     }
 
     if (sprint.project.ownerId !== userId) {
-      throw new ForbiddenException('只有项目负责人可以删除 Sprint');
+      throw new ForbiddenException("只有项目负责人可以删除 Sprint");
     }
 
     await this.prisma.sprint.delete({ where: { id } });
@@ -214,9 +232,17 @@ export class SprintService {
 
     const sprint = await this.findById(sprintId, userId);
 
-    const plannedStoryPoints = sprint.tasks.reduce((sum, t) => sum + t.storyPoints, 0);
-    const completedTasks = sprint.tasks.filter(t => t.status === TaskStatus.DONE);
-    const completedStoryPoints = completedTasks.reduce((sum, t) => sum + t.storyPoints, 0);
+    const plannedStoryPoints = sprint.tasks.reduce(
+      (sum, t) => sum + t.storyPoints,
+      0,
+    );
+    const completedTasks = sprint.tasks.filter(
+      (t) => t.status === TaskStatus.DONE,
+    );
+    const completedStoryPoints = completedTasks.reduce(
+      (sum, t) => sum + t.storyPoints,
+      0,
+    );
 
     const memberStats = await this.prisma.user.findMany({
       where: {
@@ -236,10 +262,27 @@ export class SprintService {
     });
 
     const taskTypeStats = await this.prisma.task.groupBy({
-      by: ['type'],
+      by: ["type"],
       where: { sprintId },
       _count: { id: true },
     });
+
+    const taskStatusStats = await this.prisma.task.groupBy({
+      by: ["status"],
+      where: { sprintId },
+      _count: { id: true },
+    });
+
+    const allStatuses: TaskStatus[] = [
+      TaskStatus.TODO,
+      TaskStatus.IN_PROGRESS,
+      TaskStatus.TESTING,
+      TaskStatus.DONE,
+    ];
+
+    const statusMap = new Map(
+      taskStatusStats.map((t) => [t.status, t._count.id]),
+    );
 
     const result = {
       sprint: {
@@ -252,15 +295,22 @@ export class SprintService {
       storyPointsComparison: {
         planned: plannedStoryPoints,
         completed: completedStoryPoints,
-        completionRate: plannedStoryPoints > 0 ? (completedStoryPoints / plannedStoryPoints) * 100 : 0,
+        completionRate:
+          plannedStoryPoints > 0
+            ? (completedStoryPoints / plannedStoryPoints) * 100
+            : 0,
       },
-      memberStats: memberStats.map(m => ({
+      memberStats: memberStats.map((m) => ({
         ...m,
         completedTasks: m.assignedTasks.length,
       })),
-      taskTypeDistribution: taskTypeStats.map(t => ({
+      taskTypeDistribution: taskTypeStats.map((t) => ({
         type: t.type,
         count: t._count.id,
+      })),
+      taskStatusDistribution: allStatuses.map((status) => ({
+        status,
+        count: statusMap.get(status) || 0,
       })),
       totalTasks: sprint.tasks.length,
       completedTasks: completedTasks.length,
@@ -293,23 +343,23 @@ export class SprintService {
           include: {
             user: { select: { id: true, name: true } },
           },
-          orderBy: { changedAt: 'desc' },
+          orderBy: { changedAt: "desc" },
         },
         comments: {
           take: 3,
           include: {
             author: { select: { id: true, name: true, avatar: true } },
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
         },
         _count: {
           select: { comments: true, worklogs: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
-    tasks.forEach(task => {
+    tasks.forEach((task) => {
       columns[task.status].push(task);
     });
 
