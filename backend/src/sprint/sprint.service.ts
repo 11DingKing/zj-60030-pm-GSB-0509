@@ -267,15 +267,33 @@ export class SprintService {
       _count: { id: true },
     });
 
-    const todoTasks = sprint.tasks.filter(
-      (t) => t.status === TaskStatus.TODO || !t.status,
-    );
-    const inProgressTasks = sprint.tasks.filter(
-      (t) => t.status === TaskStatus.IN_PROGRESS,
-    );
-    const testingTasks = sprint.tasks.filter(
-      (t) => t.status === TaskStatus.TESTING,
-    );
+    const taskStatusStats = await this.prisma.task.groupBy({
+      by: ["status"],
+      where: { sprintId },
+      _count: { id: true },
+    });
+
+    const statusCounts: Record<string, number> = {
+      [TaskStatus.TODO]: 0,
+      [TaskStatus.IN_PROGRESS]: 0,
+      [TaskStatus.TESTING]: 0,
+      [TaskStatus.DONE]: 0,
+    };
+
+    taskStatusStats.forEach((stat) => {
+      const status = stat.status || TaskStatus.TODO;
+      statusCounts[status] = (statusCounts[status] || 0) + stat._count.id;
+    });
+
+    const nullStatusTasks = sprint.tasks.filter((t) => !t.status).length;
+    if (nullStatusTasks > 0) {
+      statusCounts[TaskStatus.TODO] += nullStatusTasks;
+    }
+
+    const todoTasksCount = statusCounts[TaskStatus.TODO];
+    const inProgressTasksCount = statusCounts[TaskStatus.IN_PROGRESS];
+    const testingTasksCount = statusCounts[TaskStatus.TESTING];
+    const completedTasksCount = statusCounts[TaskStatus.DONE];
 
     const result = {
       sprint: {
@@ -302,10 +320,10 @@ export class SprintService {
         count: t._count.id,
       })),
       totalTasks: sprint.tasks.length,
-      todoTasks: todoTasks.length,
-      inProgressTasks: inProgressTasks.length,
-      testingTasks: testingTasks.length,
-      completedTasks: completedTasks.length,
+      todoTasks: todoTasksCount,
+      inProgressTasks: inProgressTasksCount,
+      testingTasks: testingTasksCount,
+      completedTasks: completedTasksCount,
     };
 
     await this.redisService.setJson(cacheKey, result, 300);

@@ -36,6 +36,7 @@
         >
           <div
             :class="`kanban-column status-${column.status}`"
+            :data-status="column.status"
             style="border-radius: 8px; padding: 16px"
           >
             <div
@@ -59,7 +60,7 @@
             </div>
 
             <draggable
-              :list="column.tasks"
+              :model-value="column.tasks"
               group="tasks"
               item-key="id"
               ghost-class="ghost"
@@ -70,6 +71,7 @@
                 <el-card
                   class="task-card"
                   :class="`priority-${task.priority}`"
+                  :data-id="task.id"
                   shadow="hover"
                   style="margin-bottom: 12px; cursor: grab"
                   @click.stop="goToTask(task.id)"
@@ -349,23 +351,25 @@ const loadKanban = async () => {
   }
 };
 
-const onDragEnd = async (_evt: any, newStatus: TaskStatus) => {
-  if (!kanbanData.value) return;
-  for (const column of kanbanData.value.columns) {
-    for (const task of column.tasks) {
-      if (task.status !== newStatus && column.status === newStatus) {
-        try {
-          await taskApi.updateStatus(task.id, newStatus);
-          task.status = newStatus;
-          loadKanban();
-          ElMessage.success("状态已更新");
-        } catch (error) {
-          console.error("更新状态失败", error);
-          loadKanban();
-        }
-        return;
-      }
-    }
+const onDragEnd = async (evt: any, newStatus: TaskStatus) => {
+  if (!kanbanData.value || !evt?.item?.dataset) return;
+
+  const draggedElement = evt.item;
+  const taskId = draggedElement.getAttribute("data-id");
+
+  if (!taskId) return;
+
+  const oldStatus = evt.from.dataset.status;
+
+  if (oldStatus === newStatus) return;
+
+  try {
+    await taskApi.updateStatus(taskId, newStatus);
+    loadKanban();
+    ElMessage.success("状态已更新");
+  } catch (error) {
+    console.error("更新状态失败", error);
+    loadKanban();
   }
 };
 
